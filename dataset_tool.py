@@ -334,9 +334,10 @@ def create_cifar10(tfrecord_dir, cifar10_dir):
         images.append(data['data'].reshape(-1, 3, 32, 32))
         labels.append(data['labels'])
     images = np.concatenate(images)
-    labels = np.concatenate(labels)
+    labels = np.concatenate(labels).astype(np.int32)
     assert images.shape == (50000, 3, 32, 32) and images.dtype == np.uint8
-    assert labels.shape == (50000,) and labels.dtype == np.int32
+    assert labels.shape == (50000,) 
+    assert labels.dtype == np.int32
     assert np.min(images) == 0 and np.max(images) == 255
     assert np.min(labels) == 0 and np.max(labels) == 9
     onehot = np.zeros((labels.size, np.max(labels) + 1), dtype=np.float32)
@@ -356,7 +357,7 @@ def create_cifar100(tfrecord_dir, cifar100_dir):
     with open(os.path.join(cifar100_dir, 'train'), 'rb') as file:
         data = pickle.load(file, encoding='latin1')
     images = data['data'].reshape(-1, 3, 32, 32)
-    labels = np.array(data['fine_labels'])
+    labels = np.array(data['fine_labels'], dtype=np.int32)
     assert images.shape == (50000, 3, 32, 32) and images.dtype == np.uint8
     assert labels.shape == (50000,) and labels.dtype == np.int32
     assert np.min(images) == 0 and np.max(images) == 255

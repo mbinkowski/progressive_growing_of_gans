@@ -7,6 +7,7 @@
 
 import numpy as np
 import tensorflow as tf
+import mmd
 
 # NOTE: Do not import any application-specific modules here!
 
@@ -239,6 +240,8 @@ def D_paper(
     fmap_base           = 8192,         # Overall multiplier for the number of feature maps.
     fmap_decay          = 1.0,          # log2 feature map reduction when doubling the resolution.
     fmap_max            = 512,          # Maximum number of feature maps in any layer.
+    fmap_out            = 1,
+    return_gradient     = False,
     use_wscale          = True,         # Enable equalized learning rate?
     mbstd_group_size    = 4,            # Group size for the minibatch standard deviation layer, 0 = disable.
     dtype               = 'float32',    # Data type to use for activations and outputs.
@@ -255,6 +258,7 @@ def D_paper(
 
     images_in.set_shape([None, num_channels, resolution, resolution])
     images_in = tf.cast(images_in, dtype)
+    images_in_ = images_in + 0.
     lod_in = tf.cast(tf.get_variable('lod', initializer=np.float32(0.0), trainable=False), dtype)
 
     # Building blocks.
@@ -281,7 +285,7 @@ def D_paper(
                 with tf.variable_scope('Dense0'):
                     x = act(apply_bias(dense(x, fmaps=nf(res-2), use_wscale=use_wscale)))
                 with tf.variable_scope('Dense1'):
-                    x = apply_bias(dense(x, fmaps=1+label_size, gain=1, use_wscale=use_wscale))
+                    x = apply_bias(dense(x, fmaps=fmap_out+label_size, gain=1, use_wscale=use_wscale))
             return x
     
     # Linear structure: simple but inefficient.
@@ -308,8 +312,13 @@ def D_paper(
         combo_out = grow(2, resolution_log2 - 2)
 
     assert combo_out.dtype == tf.as_dtype(dtype)
-    scores_out = tf.identity(combo_out[:, :1], name='scores_out')
-    labels_out = tf.identity(combo_out[:, 1:], name='labels_out')
+    scores_out = tf.identity(combo_out[:, :fmap_out], name='scores_out')
+    labels_out = tf.identity(combo_out[:, fmap_out:], name='labels_out')
+    print('DISCRIMINATOR: ', fmap_out, return_gradient)
+    if return_gradient:
+        grad = mmd.squared_norm_jacobian(scores_out, images_in)
+        print('DISCRIMINATOR: returning images_in')
+        return scores_out, labels_out, grad#images_in_
     return scores_out, labels_out
 
 #----------------------------------------------------------------------------
